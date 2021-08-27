@@ -23,6 +23,7 @@ pub fn read(buffer: &[u8]) -> ReadResult {
         let mut image = MaybeUninit::uninit();
         let ret = WebPMuxGetFrame(mux, 1, image.as_mut_ptr());
         if ret != WebPMuxError::WEBP_MUX_OK {
+            WebPMuxDelete(mux);
             return Err("failed to get frame 1".to_string());
         }
         let mut image = image.assume_init();
@@ -36,6 +37,7 @@ pub fn read(buffer: &[u8]) -> ReadResult {
             &mut height,
         );
         if rgba.is_null() {
+            WebPMuxDelete(mux);
             return Err("failed to decode image data".to_string());
         }
 
@@ -62,7 +64,10 @@ pub fn read(buffer: &[u8]) -> ReadResult {
                 exif::Reader::new().read_raw(raw.to_vec()).ok()
             }
             WebPMuxError::WEBP_MUX_NOT_FOUND => None,
-            error => return Err(format!("error while reading EXIF chunk: {:?}", error)),
+            error => {
+                WebPMuxDelete(mux);
+                return Err(format!("error while reading EXIF chunk: {:?}", error))
+            },
         };
         let orientation = exif.and_then(exif_orientation).unwrap_or(1);
 
@@ -74,7 +79,10 @@ pub fn read(buffer: &[u8]) -> ReadResult {
                 Some(std::slice::from_raw_parts(icc.bytes, icc.size))
             }
             WebPMuxError::WEBP_MUX_NOT_FOUND => None,
-            error => return Err(format!("{:?}", error)),
+            error => {
+                WebPMuxDelete(mux);
+                return Err(format!("{:?}", error))
+            },
         };
         if let Some(icc) = icc_data {
             eprintln!("transforming to srgb...");
@@ -131,8 +139,9 @@ pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
         let mut wrt = wrt.assume_init();
 
         let mut pic = MaybeUninit::<WebPPicture>::uninit();
-        WebPPictureInitInternal(pic.as_mut_ptr(), WEBP_ENCODER_ABI_VERSION as i32);
+        let ret = WebPPictureInitInternal(pic.as_mut_ptr(), WEBP_ENCODER_ABI_VERSION as i32);
         if ret == 0 {
+            WebPMemoryWriterClear(&mut wrt);
             return Err("libwebp version mismatch".to_string());
         }
         let mut pic = pic.assume_init();
@@ -169,6 +178,7 @@ pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
 
         let mux = WebPMuxCreateInternal(&data, 0, WEBP_MUX_ABI_VERSION);
         if mux.is_null() {
+            WebPMemoryWriterClear(&mut wrt);
             return Err("failed to create mux".to_string());
         }
 
@@ -184,12 +194,16 @@ pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
             0,
         );
         if ret != WebPMuxError::WEBP_MUX_OK {
+            WebPMuxDelete(mux);
+            WebPMemoryWriterClear(&mut wrt);
             return Err("failed set ICCP chunk".to_string());
         }
 
         let mut output = MaybeUninit::<WebPData>::uninit();
         let ret = WebPMuxAssemble(mux, output.as_mut_ptr());
         if ret != WebPMuxError::WEBP_MUX_OK {
+            WebPMuxDelete(mux);
+            WebPMemoryWriterClear(&mut wrt);
             return Err("failed to assemble".to_string());
         }
         let mut output = output.assume_init();
@@ -209,6 +223,7 @@ pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
         );
         if ret.is_null() {
             WebPDataClear(&mut output);
+            WebPMemoryWriterClear(&mut wrt);
             return Err("Failed to decode image data".to_string());
         }
 
