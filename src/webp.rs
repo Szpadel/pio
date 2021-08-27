@@ -216,6 +216,7 @@ pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
         let buffer = std::slice::from_raw_parts(output.bytes, output.size as usize).to_vec();
 
         WebPDataClear(&mut output);
+        WebPMemoryWriterClear(&mut wrt);
 
         Ok((Image::from_rgba(pixels, image.width, image.height), buffer))
     }
