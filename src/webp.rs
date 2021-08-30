@@ -37,6 +37,7 @@ pub fn read(buffer: &[u8]) -> ReadResult {
             &mut height,
         );
         if rgba.is_null() {
+            WebPDataClear(&mut image.bitstream);
             WebPMuxDelete(mux);
             return Err("failed to decode image data".to_string());
         }
