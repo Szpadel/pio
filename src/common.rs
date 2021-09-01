@@ -8,7 +8,7 @@ use dssim::{ToRGBAPLU, RGBAPLU};
 use imgref::{Img, ImgVec};
 use rgb::{alt::GRAY8, ComponentBytes, RGB8, RGBA8};
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum ColorSpace {
     Gray,
     GrayAlpha,
@@ -16,6 +16,7 @@ pub enum ColorSpace {
     RGBA,
 }
 
+#[derive(Clone)]
 pub struct Image {
     pub width: usize,
     pub height: usize,
