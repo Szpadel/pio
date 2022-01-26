@@ -8,3 +8,4 @@ pub mod png;
 pub mod profile;
 pub mod ssim;
 pub mod webp;
+pub mod avif;

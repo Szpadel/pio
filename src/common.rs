@@ -70,6 +70,10 @@ impl Image {
         }
     }
 
+    pub fn has_alpha(&self) -> bool {
+        self.data.iter().any(|c| c.a < 255)
+    }
+
     pub fn from_rgb(data: Vec<RGB8>, width: usize, height: usize) -> Self {
         Self::from_rgba(data.iter().map(|c| c.alpha(255)).collect(), width, height)
     }
@@ -198,6 +202,7 @@ pub enum Format {
     JPEG,
     PNG,
     WEBP,
+    AVIF,
 }
 
 impl Format {
@@ -206,6 +211,7 @@ impl Format {
             "jpeg" | "jpg" => Some(Self::JPEG),
             "png" => Some(Self::PNG),
             "webp" => Some(Self::WEBP),
+            "avif" => Some(Self::AVIF),
             _ => None,
         }
     }
@@ -222,6 +228,7 @@ impl Format {
             [0xff, 0xd8, 0xff, ..] => Some(Self::JPEG),
             [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, ..] => Some(Self::PNG),
             [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P', ..] => Some(Self::WEBP),
+            [0x00, 0x00, 0x00, _, b'f', b't', b'y', b'p', b'a', b'v', b'i', b'f', ..] => Some(Self::AVIF),
             _ => None,
         }
     }
@@ -231,6 +238,7 @@ impl Format {
             Self::JPEG => false,
             Self::PNG => true,
             Self::WEBP => true,
+            Self::AVIF => true,
         }
     }
 
@@ -239,6 +247,7 @@ impl Format {
             Self::JPEG => true,
             Self::PNG => false,
             Self::WEBP => false,
+            Self::AVIF => false,
         }
     }
 }

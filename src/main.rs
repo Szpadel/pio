@@ -11,7 +11,7 @@ use rgb::RGB8;
 
 use pio::common::{ChromaSubsampling, ChromaSubsamplingOption, CompressResult, Format, Image};
 use pio::output::Output;
-use pio::{jpeg, png, ssim, webp};
+use pio::{avif, jpeg, png, ssim, webp};
 
 type LossyCompressor = Box<dyn Fn(&Image, u8, ChromaSubsampling) -> CompressResult>;
 type LosslessCompressor = Box<dyn Fn(&Image) -> CompressResult>;
@@ -141,7 +141,6 @@ fn compress_image(
     };
 
     for sampling in samplings {
-        eprintln!("chroma subsampling: {:?}", sampling);
         let (dssim, buffer) = find_image(
             &image,
             &attr,
@@ -221,6 +220,7 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
     let spread = matches.value_of("spread").unwrap().parse::<u8>().unwrap();
 
     let target = QUALITY_SSIM[quality as usize];
+    eprintln!("target ssim: {}", target);
 
     let min = match matches.value_of("min") {
         Some(s) => s.parse().unwrap(),
@@ -257,7 +257,7 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
             .read_exact(&mut buf)
             .map_err(|err| format!("failed to read magic number: {}", err))?;
         let fmt = Format::from_magic(&buf)
-            .ok_or_else(|| "unknown input format, expected jpeg, png or webp".to_string())?;
+            .ok_or_else(|| "unknown input format, expected jpeg, png, webp or avif".to_string())?;
         // Read rest of the input.
         reader
             .read_to_end(&mut buf)
@@ -281,7 +281,7 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
                 let format = match matches.value_of("output-format") {
                     Some(format) => Format::from_ext(format).unwrap(),
                     None => Format::from_path(path).ok_or_else(|| {
-                        "failed to determine output format: either use a known file extension (jpeg, png or webp) or specify the format using `--output-format`".to_string()
+                        "failed to determine output format: either use a known file extension (jpeg, png, webp or avif) or specify the format using `--output-format`".to_string()
                     })?,
                 };
                 let output = Output::write_file(path)
@@ -313,6 +313,7 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
         Format::JPEG => jpeg::read(&input_buffer),
         Format::PNG => png::read(&input_buffer),
         Format::WEBP => webp::read(&input_buffer),
+        Format::AVIF => avif::read(&input_buffer),
     }
     .map_err(|err| format!("failed to read input: {}", err))?;
 
@@ -324,6 +325,7 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
                 Box::new(|img, q, _cs| webp::compress(img, q, false)),
                 Some(Box::new(|img| webp::compress(img, 100, true))),
             ),
+            Format::AVIF => (Box::new(|img, q, _cs| avif::compress(img, q)), None),
         };
 
     if !output_format.supports_transparency() || matches.is_present("no-transparency") {
@@ -396,7 +398,7 @@ fn main() {
                 .help("Sets output file format")
                 .value_name("format")
                 .takes_value(true)
-                .possible_values(&["jpeg", "png", "webp"]),
+                .possible_values(&["jpeg", "png", "webp", "avif"]),
         )
         .arg(
             Arg::with_name("in-place")
@@ -585,6 +587,37 @@ mod tests {
         let dir = tempdir()?;
         let input = "images/image1-original.png";
         let output = dir.path().join("output.webp");
+        Command::cargo_bin("pio")?
+            .arg(input)
+            .arg("-o")
+            .arg(&output)
+            .assert()
+            .success();
+        assert_image_similarity(input, output)?;
+        Ok(())
+    }
+
+    #[test]
+    fn reads_avif() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let input = dir.path().join("input.avif");
+        convert_image("images/image1-original.png", &input);
+        let output = dir.path().join("output.jpeg");
+        Command::cargo_bin("pio")?
+            .arg(&input)
+            .arg("-o")
+            .arg(&output)
+            .assert()
+            .success();
+        assert_image_similarity(input, output)?;
+        Ok(())
+    }
+
+    #[test]
+    fn outputs_avif() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let input = "images/image1-original.png";
+        let output = dir.path().join("output.avif");
         Command::cargo_bin("pio")?
             .arg(input)
             .arg("-o")
