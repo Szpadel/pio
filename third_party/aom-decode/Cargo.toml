@@ -1,0 +1,31 @@
+[package]
+name = "aom-decode"
+version = "0.2.1"
+authors = ["Kornel Lesiński <kornel@geekhood.net>"]
+categories = ["multimedia::images"]
+edition = "2018"
+homepage = "https://lib.rs/aom-decode"
+include = ["Cargo.toml", "README.md", "/src/*.rs"]
+keywords = ["decoder", "av1", "cest-lavif", "libaom", "unavif"]
+license = "BSD-2-Clause"
+readme = "README.md"
+repository = "https://gitlab.com/kornelski/aom-decode"
+description = "Minimal safe wrapper for libaom AV1 decoder"
+
+[dependencies]
+libaom-sys = { path = "../libaom-sys" }
+quick-error = "2.0.1"
+yuv = "0.1.4"
+avif-parse = { version = "1", optional = true }
+imgref = { version = "1.9.1", optional = true }
+
+[dev-dependencies]
+avif-parse = "1"
+rayon = "1.5.1"
+rgb = "0.8.31"
+lodepng = "3.4.7"
+num_cpus = "1.13.1"
+
+[features]
+default = ["avif"]
+avif = ["avif-parse", "imgref"]

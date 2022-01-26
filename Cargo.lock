@@ -48,9 +48,8 @@ checksum = "94a45b455c14666b85fc40a019e8ab9eb75e3a124e05494f5397122bc9eb06e0"
 [[package]]
 name = "aom-decode"
 version = "0.2.1"
-source = "git+https://gitlab.com/kornelski/aom-decode#a05ec68fb4bbe14f8b51fa04d9e87b213b9db025"
 dependencies = [
- "avif-parse 0.13.2",
+ "avif-parse",
  "imgref",
  "libaom-sys",
  "quick-error",
@@ -124,19 +123,6 @@ dependencies = [
  "rayon",
  "thiserror",
  "v_frame",
-]
-
-[[package]]
-name = "avif-parse"
-version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2830aa7295d98f514c2dbeb01acdc06d688852bb2a056a933f4d673b0ccd4ef"
-dependencies = [
- "bitreader",
- "byteorder",
- "fallible_collections",
- "log",
- "static_assertions",
 ]
 
 [[package]]
@@ -947,7 +933,7 @@ version = "0.5.0"
 dependencies = [
  "aom-decode",
  "assert_cmd",
- "avif-parse 1.0.0",
+ "avif-parse",
  "clap",
  "dssim",
  "image",
