@@ -5,7 +5,7 @@ use rgb::alt::GRAY8;
 use crate::common::{exif_orientation, orient_image, CompressResult, Image, ReadResult};
 
 pub fn read(buffer: &[u8]) -> ReadResult {
-    let mut d = Avif::decode(buffer, &aom_decode::Config { threads: 0 })
+    let mut d = Avif::decode(buffer, &aom_decode::Config { threads: 1 })
         .map_err(|err| format!("Failed to create decoder: {}", err))?;
 
     let image = match d.convert().map_err(|err| format!("Failed to convert avif: {}", err))? {
@@ -42,7 +42,7 @@ pub fn compress(image: &Image, quality: u8) -> CompressResult {
         color_space: ravif::ColorSpace::YCbCr,
         premultiplied_alpha: false,
         speed: 3,
-        threads: 0,
+        threads: 1,
     };
 
     let img = ravif::Img::new(image.data.clone(), image.width, image.height);
