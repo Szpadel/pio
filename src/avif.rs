@@ -2,13 +2,18 @@ use aom_decode::avif::Avif;
 
 use rgb::alt::GRAY8;
 
-use crate::common::{exif_orientation, orient_image, CompressResult, Image, ReadResult};
+use crate::common::{
+    exif_orientation, orient_image, CompressResult, FastCompressResult, Image, ReadResult,
+};
 
 pub fn read(buffer: &[u8]) -> ReadResult {
     let mut d = Avif::decode(buffer, &aom_decode::Config { threads: 1 })
         .map_err(|err| format!("Failed to create decoder: {}", err))?;
 
-    let image = match d.convert().map_err(|err| format!("Failed to convert avif: {}", err))? {
+    let image = match d
+        .convert()
+        .map_err(|err| format!("Failed to convert avif: {}", err))?
+    {
         aom_decode::avif::Image::RGB8(img) => {
             Image::from_rgb(img.pixels().collect(), img.width(), img.height())
         }
@@ -34,14 +39,14 @@ pub fn read(buffer: &[u8]) -> ReadResult {
     Ok(orient_image(image, orientation))
 }
 
-pub fn compress(image: &Image, quality: u8) -> CompressResult {
+fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, String> {
     let has_alpha = image.has_alpha();
     let config = ravif::Config {
         quality: quality as f32,
-        alpha_quality: if has_alpha { quality as f32 } else { 0.0 },
+        alpha_quality: if has_alpha { 100.0 } else { 0.0 },
         color_space: ravif::ColorSpace::YCbCr,
         premultiplied_alpha: false,
-        speed: 3,
+        speed: if fast { 10 } else { 3 },
         threads: 1,
     };
 
@@ -49,6 +54,15 @@ pub fn compress(image: &Image, quality: u8) -> CompressResult {
     let img = ravif::cleared_alpha(img);
     let result = ravif::encode_rgba(img.as_ref(), &config)
         .map_err(|err| format!("Failed to compress image: {}", err))?;
+    Ok(result.0)
+}
 
-    Ok((read(&result.0)?, result.0))
+pub fn compress_fast(image: &Image, quality: u8) -> FastCompressResult {
+    let result = compress_base(image, quality, true)?;
+    Ok(result)
+}
+
+pub fn compress(image: &Image, quality: u8) -> CompressResult {
+    let result = compress_base(image, quality, false)?;
+    Ok((read(&result)?, result))
 }

@@ -1,0 +1,31 @@
+[package]
+authors = ["Inflation <hypernovagama@gmail.com>"]
+categories = ["external-ffi-bindings", "encoding", "multimedia::images"]
+description = "Rust wrapper for JPEG XL reference implementation"
+edition = "2021"
+exclude = ["test/"]
+keywords = ["jpeg-xl", "jxl"]
+license = "GPL-3.0-or-later"
+links = "jxl"
+name = "jpegxl-sys"
+readme = "README.md"
+repository = "https://github.com/inflation/jpegxl-sys"
+version = "0.7.0-alpha1"
+
+[package.metadata.docs.rs]
+features = ["system-jxl"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+pkg-config = "0.3.24"
+cmake = "0.1.45"
+num_cpus = "1.13.0"
+
+[dev-dependencies]
+image = { version = "0.23.14", default-features = false, features = ["png"] }
+
+[features]
+default = ["threads"]
+system-jxl = []
+threads = []

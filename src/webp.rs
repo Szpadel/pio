@@ -5,7 +5,7 @@ use libwebp_sys::*;
 use rgb::RGBA8;
 use std::mem::MaybeUninit;
 
-use crate::common::{exif_orientation, orient_image, CompressResult, Image, ReadResult};
+use crate::common::{exif_orientation, orient_image, CompressResult, Image, ReadResult, FastCompressResult};
 use crate::profile::{is_srgb, SRGB_PROFILE};
 
 pub fn read(buffer: &[u8]) -> ReadResult {
@@ -116,7 +116,7 @@ pub fn read(buffer: &[u8]) -> ReadResult {
     }
 }
 
-pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
+fn compress_base(image: &Image, quality: u8, lossless: bool, fast: bool) -> CompressResult {
     unsafe {
         let mut config = MaybeUninit::<WebPConfig>::uninit();
         let ret = WebPConfigInitInternal(
@@ -129,10 +129,24 @@ pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
             return Err("libwebp version mismatch".to_string());
         }
         let mut config = config.assume_init();
-        config.method = 6;
-        config.use_sharp_yuv = 1;
+        if fast {
+            config.method = 0;
+            config.use_sharp_yuv = 0;
+            config.pass = 1;
+        }else {
+            config.method = 6;
+            config.use_sharp_yuv = 1;
+            config.autofilter = 1;
+            config.filter_type = 1;
+            config.pass = 10;
+            config.alpha_filtering = 2;
+            config.sns_strength = 0;
+            config.partitions = 3;
+        }
+
         if lossless {
             config.lossless = 1;
+            config.quality = 100.0;
         }
 
         let mut wrt = MaybeUninit::<WebPMemoryWriter>::uninit();
@@ -236,4 +250,14 @@ pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
 
         Ok((Image::from_rgba(pixels, image.width, image.height), buffer))
     }
+}
+
+pub fn compress_fast(image: &Image, quality: u8, lossless: bool) -> FastCompressResult {
+    let (_image, buffer) = compress_base(image, quality,lossless, true)?;
+    Ok(buffer)
+}
+
+
+pub fn compress(image: &Image, quality: u8, lossless: bool) -> CompressResult {
+    compress_base(image, quality,lossless, false)
 }

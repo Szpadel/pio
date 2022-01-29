@@ -6,8 +6,8 @@
 use rgb::{alt::GRAY8, ComponentBytes, RGB8};
 
 use crate::common::{
-    exif_orientation, orient_image, ChromaSubsampling, ColorSpace, CompressResult, Image,
-    ReadResult,
+    exif_orientation, orient_image, ChromaSubsampling, ColorSpace, CompressResult,
+    FastCompressResult, Image, ReadResult,
 };
 use crate::profile::{is_srgb, GRAY_PROFILE, SRGB_PROFILE};
 
@@ -158,17 +158,23 @@ pub fn read(buffer: &[u8]) -> ReadResult {
     Ok(orient_image(image, orientation))
 }
 
-pub fn compress(
+fn compress_base(
     image: &Image,
     quality: u8,
     chroma_subsampling: ChromaSubsampling,
-) -> CompressResult {
+    fast: bool,
+) -> Result<Vec<u8>, String> {
     let mut cinfo = mozjpeg::Compress::new(match image.color_space {
         ColorSpace::Gray => mozjpeg::ColorSpace::JCS_GRAYSCALE,
         _ => mozjpeg::ColorSpace::JCS_EXT_RGBX,
     });
     cinfo.set_size(image.width, image.height);
     cinfo.set_quality(quality as f32);
+    if fast {
+        cinfo.set_fastest_defaults();
+    } else {
+        cinfo.set_use_scans_in_trellis(true);
+    }
     cinfo.set_mem_dest();
 
     if image.color_space != ColorSpace::Gray {
@@ -207,6 +213,24 @@ pub fn compress(
     let cdata = cinfo
         .data_to_vec()
         .map_err(|_err| "Failed to compress image".to_string())?;
+    Ok(cdata)
+}
+
+pub fn compress_fast(
+    image: &Image,
+    quality: u8,
+    chroma_subsampling: ChromaSubsampling,
+) -> FastCompressResult {
+    let cdata = compress_base(image, quality, chroma_subsampling, true)?;
+    Ok(cdata)
+}
+
+pub fn compress(
+    image: &Image,
+    quality: u8,
+    chroma_subsampling: ChromaSubsampling,
+) -> CompressResult {
+    let cdata = compress_base(image, quality, chroma_subsampling, false)?;
     let image = read(&cdata)?;
 
     Ok((image, cdata))

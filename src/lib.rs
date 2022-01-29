@@ -8,4 +8,7 @@ pub mod png;
 pub mod profile;
 pub mod ssim;
 pub mod webp;
+#[cfg(feature = "avif")]
 pub mod avif;
+#[cfg(feature = "jxl")]
+pub mod jxl;

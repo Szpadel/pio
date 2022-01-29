@@ -71,7 +71,10 @@ impl Image {
     }
 
     pub fn has_alpha(&self) -> bool {
-        self.data.iter().any(|c| c.a < 255)
+        match self.color_space {
+            ColorSpace::Gray | ColorSpace::RGB => false,
+            ColorSpace::GrayAlpha | ColorSpace::RGBA => true,
+        }
     }
 
     pub fn from_rgb(data: Vec<RGB8>, width: usize, height: usize) -> Self {
@@ -202,7 +205,10 @@ pub enum Format {
     JPEG,
     PNG,
     WEBP,
+    #[cfg(feature = "avif")]
     AVIF,
+    #[cfg(feature = "jxl")]
+    JXL,
 }
 
 impl Format {
@@ -211,7 +217,10 @@ impl Format {
             "jpeg" | "jpg" => Some(Self::JPEG),
             "png" => Some(Self::PNG),
             "webp" => Some(Self::WEBP),
+            #[cfg(feature = "avif")]
             "avif" => Some(Self::AVIF),
+            #[cfg(feature = "jxl")]
+            "jxl" => Some(Self::JXL),
             _ => None,
         }
     }
@@ -228,7 +237,12 @@ impl Format {
             [0xff, 0xd8, 0xff, ..] => Some(Self::JPEG),
             [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, ..] => Some(Self::PNG),
             [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P', ..] => Some(Self::WEBP),
-            [0x00, 0x00, 0x00, _, b'f', b't', b'y', b'p', b'a', b'v', b'i', b'f', ..] => Some(Self::AVIF),
+            #[cfg(feature = "avif")]
+            [0x00, 0x00, 0x00, _, b'f', b't', b'y', b'p', b'a', b'v', b'i', b'f', ..] => {
+                Some(Self::AVIF)
+            }
+            #[cfg(feature = "jxl")]
+            [0xff, 0x0a, 0x18, ..] => Some(Self::JXL),
             _ => None,
         }
     }
@@ -238,7 +252,10 @@ impl Format {
             Self::JPEG => false,
             Self::PNG => true,
             Self::WEBP => true,
+            #[cfg(feature = "avif")]
             Self::AVIF => true,
+            #[cfg(feature = "jxl")]
+            Self::JXL => true,
         }
     }
 
@@ -247,10 +264,14 @@ impl Format {
             Self::JPEG => true,
             Self::PNG => false,
             Self::WEBP => false,
+            #[cfg(feature = "avif")]
             Self::AVIF => false,
+            #[cfg(feature = "jxl")]
+            Self::JXL => false,
         }
     }
 }
 
 pub type ReadResult = Result<Image, String>;
 pub type CompressResult = Result<(Image, Vec<u8>), String>;
+pub type FastCompressResult = Result<Vec<u8>, String>;

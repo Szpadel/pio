@@ -1,7 +1,11 @@
 // SPDX-FileCopyrightText: 2019-2020 Tuomas Siipola
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use crate::common::{exif_orientation, orient_image, CompressResult, Image, ReadResult};
+use rgb::RGBA;
+
+use crate::common::{
+    exif_orientation, orient_image, CompressResult, FastCompressResult, Image, ReadResult,
+};
 use crate::profile::is_srgb;
 
 pub fn read(buffer: &[u8]) -> ReadResult {
@@ -50,10 +54,19 @@ pub fn read(buffer: &[u8]) -> ReadResult {
     ))
 }
 
-pub fn compress(image: &Image, quality: u8) -> CompressResult {
+fn compress_base(
+    image: &Image,
+    quality: u8,
+    fast: bool,
+) -> Result<(Vec<u8>, Vec<RGBA<u8>>, Vec<u8>), String> {
     let (palette, pixels) = {
         let mut liq = imagequant::new();
         liq.set_quality(0, quality as u32);
+        if fast {
+            liq.set_speed(10);
+        }else {
+            liq.set_speed(1);
+        }
         let img = &mut (liq
             .new_image(&image.data, image.width, image.height, 0.0)
             .map_err(|err| err.to_string())?);
@@ -119,6 +132,16 @@ pub fn compress(image: &Image, quality: u8) -> CompressResult {
             .encode(&pixels, image.width, image.height)
             .map_err(|err| err.to_string())?
     };
+    Ok((pixels, palette, buffer))
+}
+
+pub fn compress_fast(image: &Image, quality: u8) -> FastCompressResult {
+    let (_pixels, _palette, buffer) = compress_base(image, quality, true)?;
+    Ok(buffer)
+}
+
+pub fn compress(image: &Image, quality: u8) -> CompressResult {
+    let (pixels, palette, buffer) = compress_base(image, quality, false)?;
     let result = pixels.iter().map(|i| palette[*i as usize]).collect();
     Ok((Image::from_rgba(result, image.width, image.height), buffer))
 }

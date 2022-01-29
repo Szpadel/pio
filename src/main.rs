@@ -9,9 +9,14 @@ use std::io::Read;
 use clap::{App, Arg};
 use rgb::RGB8;
 
+#[cfg(feature = "avif")]
+use pio::avif;
+#[cfg(feature = "jxl")]
+use pio::jxl;
+
 use pio::common::{ChromaSubsampling, ChromaSubsamplingOption, CompressResult, Format, Image};
 use pio::output::Output;
-use pio::{avif, jpeg, png, ssim, webp};
+use pio::{jpeg, png, ssim, webp};
 
 type LossyCompressor = Box<dyn Fn(&Image, u8, ChromaSubsampling) -> CompressResult>;
 type LosslessCompressor = Box<dyn Fn(&Image) -> CompressResult>;
@@ -214,6 +219,17 @@ fn parse_color(input: &str) -> Result<RGB8, String> {
     ))
 }
 
+fn supported_formats() -> String {
+    [
+        "jpeg",
+        "png",
+        "webp",
+        #[cfg(feature = "avif")]
+        "avif",
+    ]
+    .join(", ")
+}
+
 fn pio(matches: clap::ArgMatches) -> Result<(), String> {
     let quality = matches.value_of("quality").unwrap().parse::<u8>().unwrap();
 
@@ -256,8 +272,12 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
         reader
             .read_exact(&mut buf)
             .map_err(|err| format!("failed to read magic number: {}", err))?;
-        let fmt = Format::from_magic(&buf)
-            .ok_or_else(|| "unknown input format, expected jpeg, png, webp or avif".to_string())?;
+        let fmt = Format::from_magic(&buf).ok_or_else(|| {
+            format!(
+                "unknown input format, expected one of: {}",
+                supported_formats()
+            )
+        })?;
         // Read rest of the input.
         reader
             .read_to_end(&mut buf)
@@ -281,7 +301,7 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
                 let format = match matches.value_of("output-format") {
                     Some(format) => Format::from_ext(format).unwrap(),
                     None => Format::from_path(path).ok_or_else(|| {
-                        "failed to determine output format: either use a known file extension (jpeg, png, webp or avif) or specify the format using `--output-format`".to_string()
+                        format!("failed to determine output format: either use a known file extension ({}) or specify the format using `--output-format`", supported_formats())
                     })?,
                 };
                 let output = Output::write_file(path)
@@ -313,7 +333,10 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
         Format::JPEG => jpeg::read(&input_buffer),
         Format::PNG => png::read(&input_buffer),
         Format::WEBP => webp::read(&input_buffer),
+        #[cfg(feature = "avif")]
         Format::AVIF => avif::read(&input_buffer),
+        #[cfg(feature = "jxl")]
+        Format::JXL => jxl::read(&input_buffer),
     }
     .map_err(|err| format!("failed to read input: {}", err))?;
 
@@ -325,7 +348,13 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
                 Box::new(|img, q, _cs| webp::compress(img, q, false)),
                 Some(Box::new(|img| webp::compress(img, 100, true))),
             ),
+            #[cfg(feature = "avif")]
             Format::AVIF => (Box::new(|img, q, _cs| avif::compress(img, q)), None),
+            #[cfg(feature = "jxl")]
+            Format::JXL => (
+                Box::new(|img, q, _cs| jxl::compress(img, q, false)),
+                Some(Box::new(|img| jxl::compress(img, 100, true))),
+            ),
         };
 
     if !output_format.supports_transparency() || matches.is_present("no-transparency") {
@@ -398,7 +427,13 @@ fn main() {
                 .help("Sets output file format")
                 .value_name("format")
                 .takes_value(true)
-                .possible_values(&["jpeg", "png", "webp", "avif"]),
+                .possible_values(&[
+                    "jpeg",
+                    "png",
+                    "webp",
+                    #[cfg(feature = "avif")]
+                    "avif",
+                ]),
         )
         .arg(
             Arg::with_name("in-place")
@@ -598,6 +633,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "avif")]
     fn reads_avif() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let input = dir.path().join("input.avif");
@@ -614,6 +650,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "avif")]
     fn outputs_avif() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let input = "images/image1-original.png";
