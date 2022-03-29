@@ -46,7 +46,7 @@ fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, Stri
         alpha_quality: if has_alpha { 100.0 } else { 0.0 },
         color_space: ravif::ColorSpace::YCbCr,
         premultiplied_alpha: false,
-        speed: if fast { 10 } else { 3 },
+        speed: if fast { 10 } else { 0 },
         threads: 1,
     };
 
