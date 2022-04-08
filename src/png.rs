@@ -61,17 +61,17 @@ fn compress_base(
 ) -> Result<(Vec<u8>, Vec<RGBA<u8>>, Vec<u8>), String> {
     let (palette, pixels) = {
         let mut liq = imagequant::new();
-        liq.set_quality(0, quality as u32);
+        liq.set_quality(0, quality).map_err(|err| err.to_string())?;
         if fast {
-            liq.set_speed(10);
+            liq.set_speed(10).map_err(|err| err.to_string())?;
         }else {
-            liq.set_speed(1);
+            liq.set_speed(1).map_err(|err| err.to_string())?;
         }
         let img = &mut (liq
-            .new_image(&image.data, image.width, image.height, 0.0)
+            .new_image_borrowed(&image.data, image.width, image.height, 0.0)
             .map_err(|err| err.to_string())?);
-        let mut res = liq.quantize(&img).map_err(|err| err.to_string())?;
-        res.set_dithering_level(1.0);
+        let mut res = liq.quantize(img).map_err(|err| err.to_string())?;
+        res.set_dithering_level(1.0).map_err(|err| err.to_string())?;
         res.remapped(img).map_err(|err| err.to_string())?
     };
     let buffer = {
