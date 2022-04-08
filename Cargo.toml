@@ -32,6 +32,7 @@ rgb = "0.8.18"
 avif-parse = { version = "1.0", optional = true }
 aom-decode = { path = "third_party/aom-decode", optional = true }
 jpegxl-rs = { path = "third_party/jpegxl-rs", default-features = false, optional = true }
+num_cpus = "1"
 
 [dev-dependencies]
 assert_cmd = "2"

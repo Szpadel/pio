@@ -1055,6 +1055,7 @@ dependencies = [
  "libwebp-sys",
  "lodepng",
  "mozjpeg",
+ "num_cpus",
  "rand 0.7.3",
  "ravif",
  "rgb",

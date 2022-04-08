@@ -7,7 +7,7 @@ use crate::common::{
 };
 
 pub fn read(buffer: &[u8]) -> ReadResult {
-    let mut d = Avif::decode(buffer, &aom_decode::Config { threads: 1 })
+    let mut d = Avif::decode(buffer, &aom_decode::Config { threads: num_cpus::get() })
         .map_err(|err| format!("Failed to create decoder: {}", err))?;
 
     let image = match d
