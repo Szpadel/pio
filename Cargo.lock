@@ -1245,8 +1245,6 @@ dependencies = [
 [[package]]
 name = "ravif"
 version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ed7cc0976cb5a6e237ff1c662525592bba3cc9ecb3ae5079265f12786ef3f0f"
 dependencies = [
  "avif-serialize",
  "imgref",
