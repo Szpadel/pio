@@ -70,6 +70,7 @@ impl StatDebug {
 
 
 pub fn read(buffer: &[u8]) -> ReadResult {
+    let _d = DEBUG.enter("avif_read");
     let mut d = Avif::decode(buffer, &aom_decode::Config { threads: num_cpus::get() })
         .map_err(|err| format!("Failed to create decoder: {}", err))?;
 
@@ -103,6 +104,7 @@ pub fn read(buffer: &[u8]) -> ReadResult {
 }
 
 fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, String> {
+    let _d = DEBUG.enter("avif_compress_base");
     let has_alpha = image.has_alpha();
     let config = ravif::Config {
         quality: quality as f32,
@@ -121,11 +123,13 @@ fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, Stri
 }
 
 pub fn compress_fast(image: &Image, quality: u8) -> FastCompressResult {
+    let _d = DEBUG.enter("avif_compress_fast");
     let result = compress_base(image, quality, true)?;
     Ok(result)
 }
 
 pub fn compress(image: &Image, quality: u8) -> CompressResult {
+    let _d = DEBUG.enter("avif_compress");
     let result = compress_base(image, quality, false)?;
     Ok((read(&result)?, result))
 }
