@@ -1,3 +1,5 @@
+use std::{sync::Mutex, collections::HashMap};
+
 use aom_decode::avif::Avif;
 
 use rgb::alt::GRAY8;
@@ -5,6 +7,67 @@ use rgb::alt::GRAY8;
 use crate::common::{
     exif_orientation, orient_image, CompressResult, FastCompressResult, Image, ReadResult,
 };
+
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref DEBUG: StatDebug = Default::default();
+}
+
+struct Guard(&'static str);
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        DEBUG.leave(self.0);
+    }
+}
+
+#[derive(Default)]
+struct StatDebug {
+    section: Mutex<HashMap<&'static str, usize>>,
+}
+impl StatDebug {
+    fn enter(&self, section: &'static str) -> Guard {
+        {
+            let mut s = self.section.lock().unwrap();
+            match s.entry(section) {
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    *entry.get_mut() += 1;
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(1);
+                }
+            }
+        }
+        self.print();
+        Guard(section)
+    }
+
+    fn leave(&self, section: &'static str) {
+        {
+            let mut s = self.section.lock().unwrap();
+            match s.entry(section) {
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    *entry.get_mut() -= 1;
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(0);
+                }
+            }
+        }
+        self.print();
+    }
+
+    fn print(&self) {
+        let s = self.section.lock().unwrap();
+        let string: String = s
+            .iter()
+            .map(|(sec, count)| format!("{}: {}, ", sec, count))
+            .collect();
+        log::info!("{}", string);
+    }
+}
+
 
 pub fn read(buffer: &[u8]) -> ReadResult {
     let mut d = Avif::decode(buffer, &aom_decode::Config { threads: num_cpus::get() })
@@ -47,7 +110,7 @@ fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, Stri
         color_space: ravif::ColorSpace::YCbCr,
         premultiplied_alpha: false,
         speed: if fast { 10 } else { 1 },
-        threads: 0,
+        threads: 1,
     };
 
     let img = ravif::Img::new(image.data.clone(), image.width, image.height);
