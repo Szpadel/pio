@@ -1057,7 +1057,6 @@ dependencies = [
  "mozjpeg",
  "rand 0.7.3",
  "ravif",
- "rayon",
  "rgb",
  "tempfile",
 ]

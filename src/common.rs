@@ -8,6 +8,7 @@ use dssim::{ToRGBAPLU, RGBAPLU};
 use imgref::{Img, ImgVec};
 use rgb::{alt::GRAY8, ComponentBytes, RGB8, RGBA8};
 
+
 #[derive(Clone, PartialEq)]
 pub enum ColorSpace {
     Gray,
@@ -103,11 +104,10 @@ impl Image {
     }
 
     pub fn alpha_blend(&mut self, bg: RGB8) {
-        use rayon::prelude::*;
         use rgb::ComponentMap;
 
         let bg = bg.map(srgb_to_linear);
-        self.data.par_iter_mut().for_each(|pixel| {
+        self.data.iter_mut().for_each(|pixel| {
             let a = pixel.a as f32 / 255.0;
             *pixel = pixel
                 .rgb()
