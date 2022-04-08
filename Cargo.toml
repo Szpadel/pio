@@ -16,7 +16,7 @@ panic = 'abort'
 
 [dependencies]
 clap = "2.33.1"
-dssim = "3"
+dssim = { version = "3", default-features = false, features = [] }
 image = { version = "0.24", default-features = false, features = []}
 imagequant = "4"
 imgref = "1.6.1"

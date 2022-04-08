@@ -446,7 +446,6 @@ dependencies = [
  "imgref",
  "load_image",
  "lodepng",
- "rayon",
  "rgb",
 ]
 
@@ -458,7 +457,6 @@ checksum = "6350079274a9d8edaf961ed463e0bc8bb1fce2e407cc6c71bee043b98c11e56e"
 dependencies = [
  "imgref",
  "itertools",
- "rayon",
  "rgb",
 ]
 
