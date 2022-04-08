@@ -638,9 +638,7 @@ dependencies = [
  "fallible_collections",
  "noisy_float",
  "once_cell",
- "rayon",
  "rgb",
- "thread_local",
 ]
 
 [[package]]
@@ -1538,15 +1536,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "thread_local"
-version = "1.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5516c27b78311c50bf42c071425c560ac799b11c30b31f87e3081965fe5e0180"
-dependencies = [
- "once_cell",
 ]
 
 [[package]]

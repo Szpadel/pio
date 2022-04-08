@@ -18,7 +18,7 @@ panic = 'abort'
 clap = "2.33.1"
 dssim = { version = "3", default-features = false, features = [] }
 image = { version = "0.24", default-features = false, features = []}
-imagequant = "4"
+imagequant = { version = "4", default-features = false, features = []}
 imgref = "1.6.1"
 kamadak-exif = "0.5.1"
 lcms2 = "5.3.1"
