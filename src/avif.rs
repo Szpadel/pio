@@ -47,7 +47,7 @@ fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, Stri
         color_space: ravif::ColorSpace::YCbCr,
         premultiplied_alpha: false,
         speed: if fast { 10 } else { 1 },
-        threads: 0,
+        threads: 1,
     };
 
     let img = ravif::Img::new(image.data.clone(), image.width, image.height);
