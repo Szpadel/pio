@@ -58,7 +58,7 @@ impl Image {
     pub fn from_rgba(data: Vec<RGBA8>, width: usize, height: usize) -> Self {
         let has_color = data.iter().any(|c| !is_gray(c.rgb()));
         let has_alpha = data.iter().any(|c| c.a < 255);
-        Self {
+        let mut s = Self {
             width,
             height,
             data,
@@ -68,7 +68,9 @@ impl Image {
                 (true, false) => ColorSpace::RGB,
                 (true, true) => ColorSpace::RGBA,
             },
-        }
+        };
+        s.optimize_alpha();
+        s
     }
 
     pub fn has_alpha(&self) -> bool {
@@ -119,6 +121,18 @@ impl Image {
                 .collect::<RGB8>()
                 .alpha(255);
         });
+    }
+
+    pub fn optimize_alpha(&mut self) {
+        if self.has_alpha() {
+            self.data.iter_mut().for_each(|pixel| {
+                if pixel.a == 0 {
+                    pixel.r = 0;
+                    pixel.b = 0;
+                    pixel.g = 0;
+                }
+            });
+        }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
