@@ -15,7 +15,7 @@ pub fn read(buffer: &[u8]) -> ReadResult {
             size: buffer.len(),
         };
 
-        let mux = WebPMuxCreateInternal(&data, 0, WEBP_MUX_ABI_VERSION);
+        let mux = WebPMuxCreateInternal(&data, 0, WebPGetMuxABIVersion());
         if mux.is_null() {
             return Err("failed to create mux".to_string());
         }
@@ -191,7 +191,7 @@ fn compress_base(image: &Image, quality: u8, lossless: bool, fast: bool) -> Comp
             size: wrt.size,
         };
 
-        let mux = WebPMuxCreateInternal(&data, 0, WEBP_MUX_ABI_VERSION);
+        let mux = WebPMuxCreateInternal(&data, 0, WebPGetMuxABIVersion());
         if mux.is_null() {
             WebPMemoryWriterClear(&mut wrt);
             return Err("failed to create mux".to_string());

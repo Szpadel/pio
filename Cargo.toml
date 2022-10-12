@@ -22,11 +22,11 @@ imagequant = { version = "4", default-features = false, features = []}
 imgref = "1.6.1"
 kamadak-exif = "0.5.1"
 lcms2 = "5.3.1"
-libwebp-sys = "0.5.0"
+libwebp-sys = "0.8.0"
 lodepng = "3.0.0"
 mozjpeg = "0.9"
 rand = "0.7"
-ravif = { git = "https://github.com/Szpadel/cavif-rs", subdir = "ravif", default-features = false, optional = true }
+ravif = { version = "0.9", optional = true }
 # rayon = "1.3.1"
 rgb = "0.8.18"
 avif-parse = { version = "1.0", optional = true }
