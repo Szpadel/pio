@@ -7,8 +7,13 @@ use crate::common::{
 };
 
 pub fn read(buffer: &[u8]) -> ReadResult {
-    let mut d = Avif::decode(buffer, &aom_decode::Config { threads: num_cpus::get() })
-        .map_err(|err| format!("Failed to create decoder: {}", err))?;
+    let mut d = Avif::decode(
+        buffer,
+        &aom_decode::Config {
+            threads: num_cpus::get(),
+        },
+    )
+    .map_err(|err| format!("Failed to create decoder: {}", err))?;
 
     let image = match d
         .convert()
@@ -41,20 +46,16 @@ pub fn read(buffer: &[u8]) -> ReadResult {
 
 fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, String> {
     let has_alpha = image.has_alpha();
-    let config = ravif::Config {
-        quality: quality as f32,
-        alpha_quality: if has_alpha { 100.0 } else { 0.0 },
-        color_space: ravif::ColorSpace::YCbCr,
-        premultiplied_alpha: false,
-        speed: if fast { 10 } else { 1 },
-        threads: None,
-    };
 
-    let img = ravif::Img::new(image.data.clone(), image.width, image.height);
-    let img = ravif::cleared_alpha(img);
-    let result = ravif::encode_rgba(img.as_ref(), &config)
+    let result = ravif::Encoder::new()
+        .with_quality(quality as f32)
+        .with_alpha_quality(if has_alpha { 100.0 } else { 1.0 })
+        .with_internal_color_space(ravif::ColorSpace::YCbCr)
+        .with_speed(if fast { 10 } else { 1 })
+        .encode_rgba(ravif::Img::new(&image.data, image.width, image.height))
         .map_err(|err| format!("Failed to compress image: {}", err))?;
-    Ok(result.0)
+
+    Ok(result.avif_file)
 }
 
 pub fn compress_fast(image: &Image, quality: u8) -> FastCompressResult {
