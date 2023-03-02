@@ -82,7 +82,7 @@ fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, Stri
         .with_alpha_quality(if has_alpha { 100.0 } else { 1.0 })
         .with_internal_color_space(ravif::ColorSpace::YCbCr)
         .with_speed(if fast { 10 } else { 1 })
-        .with_num_threads(Some(num_cpus::get()))
+        .with_num_threads(Some(std::cmp::min(num_cpus::get(), 8)))
         .encode_rgba(ravif::Img::new(&image.data, image.width, image.height))
         .map_err(|err| format!("Failed to compress image: {}", err))?;
 
