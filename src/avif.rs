@@ -74,8 +74,14 @@ pub fn read(buffer: &[u8]) -> ReadResult {
     Ok(orient_image(image, orientation))
 }
 
-fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, String> {
+fn compress_base(image: &Image, mut quality: u8, fast: bool) -> Result<Vec<u8>, String> {
     let has_alpha = image.has_alpha();
+    if quality > 100 {
+        quality = 100;
+    }
+    if quality < 1 {
+        quality = 1;
+    }
 
     let result = ravif::Encoder::new()
         .with_quality(quality as f32)
@@ -88,7 +94,10 @@ fn compress_base(image: &Image, quality: u8, fast: bool) -> Result<Vec<u8>, Stri
     Ok(result.avif_file)
 }
 
-pub fn compress_fast(image: &Image, quality: u8) -> FastCompressResult {
+pub fn compress_fast(image: &Image, mut quality: u8) -> FastCompressResult {
+    if quality > 100 {
+        quality = 100
+    }
     let result = compress_base(image, quality, true)?;
     Ok(result)
 }
