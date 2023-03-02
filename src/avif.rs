@@ -1,10 +1,28 @@
 use aom_decode::avif::Avif;
 
-use rgb::alt::GRAY8;
+use lodepng::RGB;
+use rgb::{alt::GRAY8, RGBA};
 
 use crate::common::{
     exif_orientation, orient_image, CompressResult, FastCompressResult, Image, ReadResult,
 };
+
+fn rgb16to8(p: RGB<u16>) -> RGB<u8> {
+    RGB {
+        r: (p.r / 256) as u8,
+        g: (p.g / 256) as u8,
+        b: (p.b / 256) as u8,
+    }
+}
+
+fn rgba16to8(p: RGBA<u16>) -> RGBA<u8> {
+    RGBA {
+        r: (p.r / 256) as u8,
+        g: (p.g / 256) as u8,
+        b: (p.b / 256) as u8,
+        a: (p.a / 256) as u8,
+    }
+}
 
 pub fn read(buffer: &[u8]) -> ReadResult {
     let mut d = Avif::decode(
@@ -25,14 +43,26 @@ pub fn read(buffer: &[u8]) -> ReadResult {
         aom_decode::avif::Image::RGBA8(img) => {
             Image::from_rgba(img.pixels().collect(), img.width(), img.height())
         }
-        aom_decode::avif::Image::RGB16(_) => Err("16bit not supported")?,
-        aom_decode::avif::Image::RGBA16(_) => Err("16bit not supported")?,
+        aom_decode::avif::Image::RGB16(img) => Image::from_rgb(
+            img.pixels().map(rgb16to8).collect(),
+            img.width(),
+            img.height(),
+        ),
+        aom_decode::avif::Image::RGBA16(img) => Image::from_rgba(
+            img.pixels().map(rgba16to8).collect(),
+            img.width(),
+            img.height(),
+        ),
         aom_decode::avif::Image::Gray8(img) => Image::from_gray(
             img.pixels().map(|p| GRAY8::new(p)).collect(),
             img.width(),
             img.height(),
         ),
-        aom_decode::avif::Image::Gray16(_) => Err("16bit not supported")?,
+        aom_decode::avif::Image::Gray16(img) => Image::from_gray(
+            img.pixels().map(|p| GRAY8::new((p / 256) as u8)).collect(),
+            img.width(),
+            img.height(),
+        ),
     };
 
     let orientation = exif::Reader::new()
