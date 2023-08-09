@@ -23,6 +23,7 @@ pub struct Image {
     pub height: usize,
     pub data: Vec<RGBA8>,
     pub color_space: ColorSpace,
+    _private: (),
 }
 
 fn distance(a: u8, b: u8) -> u8 {
@@ -68,6 +69,7 @@ impl Image {
                 (true, false) => ColorSpace::RGB,
                 (true, true) => ColorSpace::RGBA,
             },
+            _private: (),
         };
         s.optimize_alpha();
         s
@@ -90,6 +92,7 @@ impl Image {
             height,
             data: data.iter().map(|c| RGB8::from(*c).alpha(255)).collect(),
             color_space: ColorSpace::Gray,
+            _private: (),
         }
     }
 
