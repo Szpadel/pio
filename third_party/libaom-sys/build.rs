@@ -28,10 +28,18 @@ fn main() {
         "cargo:pkgconfig={}",
         dst.join("lib64").join("pkgconfig").display()
     );
+    println!(
+        "cargo:pkgconfig={}",
+        dst.join("lib").join("pkgconfig").display()
+    );
 
     println!(
         "cargo:rustc-link-search=native={}",
         dst.join("lib64").display()
+    );
+    println!(
+        "cargo:rustc-link-search=native={}",
+        dst.join("lib").display()
     );
     println!("cargo:rustc-link-lib=static=aom");
 }
