@@ -8,7 +8,6 @@ use dssim::{ToRGBAPLU, RGBAPLU};
 use imgref::{Img, ImgVec};
 use rgb::{alt::GRAY8, ComponentBytes, RGB8, RGBA8};
 
-
 #[derive(Clone, PartialEq)]
 pub enum ColorSpace {
     Gray,
@@ -56,6 +55,29 @@ fn linear_to_srgb(u: f32) -> u8 {
 }
 
 impl Image {
+    pub fn new(
+        data: Vec<RGBA8>,
+        width: usize,
+        height: usize,
+        has_color: bool,
+        has_alpha: bool,
+    ) -> Self {
+        let mut s = Self {
+            width,
+            height,
+            data,
+            color_space: match (has_color, has_alpha) {
+                (false, false) => ColorSpace::Gray,
+                (false, true) => ColorSpace::GrayAlpha,
+                (true, false) => ColorSpace::RGB,
+                (true, true) => ColorSpace::RGBA,
+            },
+            _private: (),
+        };
+        s.optimize_alpha();
+        s
+    }
+
     pub fn from_rgba(data: Vec<RGBA8>, width: usize, height: usize) -> Self {
         let has_color = data.iter().any(|c| !is_gray(c.rgb()));
         let has_alpha = data.iter().any(|c| c.a < 255);
