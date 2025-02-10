@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use rgb::{alt::GRAY8, ComponentBytes, RGB8};
+use rgb::{alt::Gray, ComponentBytes, RGB8};
 
 use crate::common::{
     exif_orientation, orient_image, ChromaSubsampling, ColorSpace, CompressResult,
@@ -13,7 +13,7 @@ use crate::profile::{is_srgb, GRAY_PROFILE, SRGB_PROFILE};
 
 // ICC profiles can be split into chunks and stored in multiple markers. Reconstruct the profile by
 // reading these markers and concatenating their data.
-fn jpeg_icc(dinfo: &mozjpeg::Decompress) -> Result<Option<Vec<u8>>, String> {
+fn jpeg_icc<R>(dinfo: &mozjpeg::Decompress<R>) -> Result<Option<Vec<u8>>, String> {
     let mut chunks = Vec::new();
     let mut total = 0;
     for marker in dinfo.markers() {
@@ -73,8 +73,8 @@ pub fn read(buffer: &[u8]) -> ReadResult {
         Ok(mozjpeg::decompress::Format::RGB(mut decompress)) => {
             let mut data: Vec<RGB8> = decompress
                 .read_scanlines()
-                .ok_or_else(|| "Failed decode image data".to_string())?;
-            decompress.finish_decompress();
+                .map_err(|err| format!("Failed to decode image data: {}", err))?;
+            decompress.finish().map_err(|err| format!("Failed to decode image data: {}", err))?;
 
             if let Some(profile) = profile {
                 if !is_srgb(&profile) {
@@ -94,10 +94,10 @@ pub fn read(buffer: &[u8]) -> ReadResult {
             Ok(Image::from_rgb(data, width, height))
         }
         Ok(mozjpeg::decompress::Format::Gray(mut decompress)) => {
-            let data: Vec<GRAY8> = decompress
+            let data: Vec<Gray<u8>> = decompress
                 .read_scanlines()
-                .ok_or_else(|| "Failed decode image data".to_string())?;
-            decompress.finish_decompress();
+                .map_err(|err| format!("Failed to decode image data: {}", err))?;
+            decompress.finish().map_err(|err| format!("Failed to decode image data: {}", err))?;
 
             if let Some(profile) = profile {
                 if !is_srgb(&profile) {
@@ -128,8 +128,8 @@ pub fn read(buffer: &[u8]) -> ReadResult {
 
             let data: Vec<[u8; 4]> = decompress
                 .read_scanlines()
-                .ok_or_else(|| "Failed decode image data".to_string())?;
-            decompress.finish_decompress();
+                .map_err(|err| format!("Failed to decode image data: {}", err))?;
+            decompress.finish().map_err(|err| format!("Failed to decode image data: {}", err))?;
 
             eprintln!("Transforming CMYK to sRGB...");
             let transform = lcms2::Transform::new(
@@ -175,7 +175,6 @@ fn compress_base(
     } else {
         cinfo.set_use_scans_in_trellis(true);
     }
-    cinfo.set_mem_dest();
 
     if image.color_space != ColorSpace::Gray {
         let chroma_subsampling = match chroma_subsampling {
@@ -193,27 +192,29 @@ fn compress_base(
         }
     }
 
-    cinfo.start_compress();
+    let buffer = Vec::new();
+    let buffer_writer = std::io::BufWriter::new(buffer);
+
+    let mut compressing = cinfo
+        .start_compress(buffer_writer)
+        .map_err(|err| format!("Failed to start compression: {}", err))?;
     let profile = match image.color_space {
         ColorSpace::Gray => GRAY_PROFILE,
         _ => SRGB_PROFILE,
     };
-    cinfo.write_marker(
+    compressing.write_marker(
         mozjpeg::Marker::APP(2),
         &[b"ICC_PROFILE\0\x01\x01", profile].concat(),
     );
     if !match image.color_space {
-        ColorSpace::Gray => cinfo.write_scanlines(image.to_gray().buf().as_bytes()),
-        _ => cinfo.write_scanlines(image.as_bytes()),
+        ColorSpace::Gray => compressing.write_scanlines(image.to_gray().buf().as_bytes()).is_ok(),
+        _ => compressing.write_scanlines(image.as_bytes()).is_ok(),
     } {
         return Err("Failed to compress image data".to_string());
     }
-    cinfo.finish_compress();
+    let done = compressing.finish().map_err(|err| format!("Failed to finish compression: {}", err))?;
 
-    let cdata = cinfo
-        .data_to_vec()
-        .map_err(|_err| "Failed to compress image".to_string())?;
-    Ok(cdata)
+    done.into_inner().map_err(|err| err.to_string())
 }
 
 pub fn compress_fast(
