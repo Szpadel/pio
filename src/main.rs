@@ -6,7 +6,7 @@
 use std::fs::File;
 use std::io::Read;
 
-use clap::{App, Arg};
+use clap::{Arg, ArgAction, Command};
 use rgb::RGB8;
 
 #[cfg(feature = "avif")]
@@ -179,31 +179,6 @@ fn compress_image(
     Ok(best_buffer)
 }
 
-fn validate_quality(x: String) -> Result<(), String> {
-    match x.parse::<i8>() {
-        Ok(x) => {
-            if (0..=100).contains(&x) {
-                Ok(())
-            } else {
-                Err("expected value between 0 and 100".to_string())
-            }
-        }
-        Err(_) => Err("expected value between 0 and 100".to_string()),
-    }
-}
-
-fn validate_spread(x: String) -> Result<(), String> {
-    match x.parse::<i8>() {
-        Ok(x) => {
-            if (0..=100).contains(&x) {
-                Ok(())
-            } else {
-                Err("expected value between 0 and 100".to_string())
-            }
-        }
-        Err(_) => Err("expected value between 0 and 100".to_string()),
-    }
-}
 
 fn parse_color(input: &str) -> Result<RGB8, String> {
     if !input.starts_with('#') {
@@ -231,32 +206,32 @@ fn supported_formats() -> String {
 }
 
 fn pio(matches: clap::ArgMatches) -> Result<(), String> {
-    let quality = matches.value_of("quality").unwrap().parse::<u8>().unwrap();
+    let quality = *matches.get_one::<u8>("quality").unwrap();
 
-    let spread = matches.value_of("spread").unwrap().parse::<u8>().unwrap();
+    let spread = *matches.get_one::<u8>("spread").unwrap();
 
     let target = QUALITY_SSIM[quality as usize];
     eprintln!("target ssim: {}", target);
 
-    let min = match matches.value_of("min") {
-        Some(s) => s.parse().unwrap(),
+    let min = match matches.get_one::<u8>("min") {
+        Some(s) => *s,
         None => std::cmp::max(0, quality - std::cmp::min(quality, spread)),
     };
-    let max = match matches.value_of("max") {
-        Some(s) => s.parse().unwrap(),
+    let max = match matches.get_one::<u8>("max") {
+        Some(s) => *s,
         None => std::cmp::min(quality + spread, 100),
     };
     if min > max {
         return Err("min must be smaller or equal to max".to_string());
     }
 
-    let fail_strategy = matches.value_of("optimization-failed").unwrap();
+    let fail_strategy = matches.get_one::<String>("optimization-failed").unwrap();
 
     let (input_format, input_buffer) = {
-        let mut reader: Box<dyn std::io::Read> = match matches.value_of_os("INPUT") {
+        let mut reader: Box<dyn std::io::Read> = match matches.get_one::<std::ffi::OsString>("INPUT") {
             None => {
-                if matches.value_of("output").is_none()
-                    && matches.value_of("output-format").is_none()
+                if matches.get_one::<String>("output").is_none()
+                    && matches.get_one::<String>("output-format").is_none()
                 {
                     return Err("reading from standard input, use `--output` to write to a file or `--output-format` to write to standard output".to_string());
                 }
@@ -286,19 +261,19 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
         (fmt, buf)
     };
 
-    let (output_format, output_writer) = if matches.is_present("in-place") {
-        let format = match matches.value_of("output-format") {
+    let (output_format, output_writer) = if matches.get_flag("in-place") {
+        let format = match matches.get_one::<String>("output-format") {
             Some(format) => Format::from_ext(format).unwrap(),
             None => input_format,
         };
-        let path = matches.value_of_os("INPUT").unwrap();
+        let path = matches.get_one::<std::ffi::OsString>("INPUT").unwrap();
         let output = Output::overwrite_file(path)
             .map_err(|err| format!("unable to overwrite file: {}", err))?;
         (format, output)
     } else {
-        match matches.value_of_os("output") {
+        match matches.get_one::<std::ffi::OsString>("output") {
             Some(path) => {
-                let format = match matches.value_of("output-format") {
+                let format = match matches.get_one::<String>("output-format") {
                     Some(format) => Format::from_ext(format).unwrap(),
                     None => Format::from_path(path).ok_or_else(|| {
                         format!("failed to determine output format: either use a known file extension ({}) or specify the format using `--output-format`", supported_formats())
@@ -309,14 +284,14 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
                 (format, output)
             }
             None => {
-                let format = Format::from_ext(matches.value_of("output-format").ok_or_else(|| "use `--output` to write to a file or `--output-format` to write to standard output".to_string())?).unwrap();
+                let format = Format::from_ext(matches.get_one::<String>("output-format").ok_or_else(|| "use `--output` to write to a file or `--output-format` to write to standard output".to_string())?).unwrap();
                 (format, Output::stdout())
             }
         }
     };
 
     let chroma_subsampling = if output_format.supports_chroma_subsampling() {
-        match matches.value_of("chroma-subsampling").unwrap() {
+        match matches.get_one::<String>("chroma-subsampling").unwrap().as_str() {
             "420" => ChromaSubsamplingOption::Manual(ChromaSubsampling::_420),
             "422" => ChromaSubsamplingOption::Manual(ChromaSubsampling::_422),
             "444" => ChromaSubsamplingOption::Manual(ChromaSubsampling::_444),
@@ -357,8 +332,9 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
             ),
         };
 
-    if !output_format.supports_transparency() || matches.is_present("no-transparency") {
-        let bg = parse_color(matches.value_of("background-color").unwrap()).unwrap();
+    if !output_format.supports_transparency() || matches.get_flag("no-transparency") {
+        let bg_str = matches.get_one::<String>("background-color").unwrap();
+        let bg = parse_color(bg_str).map_err(|e| format!("Invalid background color: {}", e))?;
         input_image.alpha_blend(bg);
     }
 
@@ -379,7 +355,7 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
                     .map_err(|err| format!("failed to write output: {}", err))?;
                 Ok(())
             } else {
-                match fail_strategy {
+                match fail_strategy.as_str() {
                     "none" => {
                         eprintln!("warning: Output is larger than input but still writing output normally. This behavior can be changed with `--optimization-failed` option.");
                         output_writer
@@ -406,28 +382,28 @@ fn pio(matches: clap::ArgMatches) -> Result<(), String> {
 }
 
 fn main() {
-    let matches = App::new("pio")
+    let matches = Command::new("pio")
         .about("Perceptual Image Optimizer")
-        .version(clap::crate_version!())
+        .version(env!("CARGO_PKG_VERSION"))
         .arg(
-            Arg::with_name("INPUT")
+            Arg::new("INPUT")
                 .help("Input file to use, standard input is used when value is - or not set")
                 .index(1),
         )
         .arg(
-            Arg::with_name("output")
+            Arg::new("output")
                 .long("output")
-                .short("o")
+                .short('o')
                 .help("Sets output file")
-                .takes_value(true),
+                .action(ArgAction::Set),
         )
         .arg(
-            Arg::with_name("output-format")
+            Arg::new("output-format")
                 .long("output-format")
                 .help("Sets output file format")
                 .value_name("format")
-                .takes_value(true)
-                .possible_values(&[
+                .action(ArgAction::Set)
+                .value_parser([
                     "jpeg",
                     "png",
                     "webp",
@@ -436,79 +412,81 @@ fn main() {
                 ]),
         )
         .arg(
-            Arg::with_name("in-place")
+            Arg::new("in-place")
                 .long("in-place")
                 .help("Overwrite input file in-place")
+                .action(ArgAction::SetTrue)
                 .conflicts_with("output")
                 .requires("INPUT"),
         )
         .arg(
-            Arg::with_name("quality")
+            Arg::new("quality")
                 .long("quality")
                 .value_name("quality")
                 .help("Sets target quality for output")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .default_value("85")
-                .validator(validate_quality),
+                .value_parser(clap::value_parser!(u8).range(0..=100)),
         )
         .arg(
-            Arg::with_name("min")
+            Arg::new("min")
                 .long("min")
                 .value_name("quality")
                 .help("Sets minimum quality for output")
-                .takes_value(true)
-                .validator(validate_quality),
+                .action(ArgAction::Set)
+                .value_parser(clap::value_parser!(u8).range(0..=100)),
         )
         .arg(
-            Arg::with_name("max")
+            Arg::new("max")
                 .long("max")
                 .value_name("quality")
                 .help("Sets maximum quality for output")
-                .takes_value(true)
-                .validator(validate_quality),
+                .action(ArgAction::Set)
+                .value_parser(clap::value_parser!(u8).range(0..=100)),
         )
         .arg(
-            Arg::with_name("spread")
+            Arg::new("spread")
                 .long("spread")
                 .value_name("spread")
                 .help("Sets deviation from the quality target")
                 .default_value("10")
-                .takes_value(true)
-                .validator(validate_spread),
+                .action(ArgAction::Set)
+                .value_parser(clap::value_parser!(u8).range(0..=100)),
         )
         .arg(
-            Arg::with_name("background-color")
+            Arg::new("background-color")
                 .long("background-color")
                 .value_name("color")
                 .help(
                     "Sets background color to use when output format doesn't support transparency",
                 )
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .default_value("#ffffff")
-                .validator(|x| parse_color(&x).map(|_| ())),
+                .value_parser(clap::builder::StringValueParser::new()),
         )
         .arg(
-            Arg::with_name("no-transparency")
+            Arg::new("no-transparency")
                 .long("no-transparency")
-                .help("Adds background color even if output format supports transparency"),
+                .help("Adds background color even if output format supports transparency")
+                .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::with_name("optimization-failed")
+            Arg::new("optimization-failed")
                 .long("optimization-failed")
                 .value_name("strategy")
                 .help("Sets strategy to use when output is larger than the input")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .default_value("none")
-                .possible_values(&["none", "exit", "copy"]),
+                .value_parser(["none", "exit", "copy"]),
         )
         .arg(
-            Arg::with_name("chroma-subsampling")
+            Arg::new("chroma-subsampling")
                 .long("chroma-subsampling")
                 .value_name("xxx")
                 .help("Specifies chroma subsampling")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .default_value("auto")
-                .possible_values(&["444", "422", "420", "auto"]),
+                .value_parser(["444", "422", "420", "auto"]),
         )
         .get_matches();
 

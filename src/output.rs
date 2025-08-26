@@ -30,11 +30,11 @@ pub enum Output {
 }
 
 fn random_file(root: impl AsRef<Path>) -> std::io::Result<(PathBuf, File)> {
-    use rand::distributions::Alphanumeric;
-    use rand::{thread_rng, Rng};
+    use rand::distr::Alphanumeric;
+    use rand::{rng, Rng};
     use std::fs::OpenOptions;
 
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     loop {
         let path = root.as_ref().with_file_name(format!(
