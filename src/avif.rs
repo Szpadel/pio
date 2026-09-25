@@ -86,9 +86,9 @@ fn compress_base(image: &Image, mut quality: u8, fast: bool) -> Result<Vec<u8>, 
     let result = ravif::Encoder::new()
         .with_quality(quality as f32)
         .with_alpha_quality(if has_alpha { 100.0 } else { 1.0 })
-        .with_internal_color_space(ravif::ColorSpace::YCbCr)
+        .with_internal_color_model(ravif::ColorModel::YCbCr)
         .with_speed(if fast { 10 } else { 1 })
-        .encode_rgba(ravif::Img::new(&image.data, image.width, image.height))
+        .encode_rgba(ravif::Img::new(image.data.as_slice(), image.width, image.height))
         .map_err(|err| format!("Failed to compress image: {}", err))?;
 
     Ok(result.avif_file)

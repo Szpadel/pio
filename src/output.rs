@@ -31,7 +31,7 @@ pub enum Output {
 
 fn random_file(root: impl AsRef<Path>) -> std::io::Result<(PathBuf, File)> {
     use rand::distr::Alphanumeric;
-    use rand::{rng, Rng};
+    use rand::{rng, RngExt};
     use std::fs::OpenOptions;
 
     let mut rng = rng();
@@ -39,7 +39,7 @@ fn random_file(root: impl AsRef<Path>) -> std::io::Result<(PathBuf, File)> {
     loop {
         let path = root.as_ref().with_file_name(format!(
             ".pio-{}.tmp",
-            (&mut rng).sample_iter(&Alphanumeric)
+            (&mut rng).sample_iter(Alphanumeric)
                 .take(16)
                 .map(char::from)
                 .collect::<String>()
