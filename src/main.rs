@@ -388,6 +388,7 @@ fn main() {
         .arg(
             Arg::new("INPUT")
                 .help("Input file to use, standard input is used when value is - or not set")
+                .value_parser(clap::value_parser!(std::ffi::OsString))
                 .index(1),
         )
         .arg(
@@ -395,6 +396,7 @@ fn main() {
                 .long("output")
                 .short('o')
                 .help("Sets output file")
+                .value_parser(clap::value_parser!(std::ffi::OsString))
                 .action(ArgAction::Set),
         )
         .arg(
